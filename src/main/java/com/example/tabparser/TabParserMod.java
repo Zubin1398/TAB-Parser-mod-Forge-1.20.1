@@ -5,6 +5,7 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraftforge.client.event.ClientChatEvent;
@@ -35,6 +36,7 @@ public class TabParserMod {
     private static final Pattern HEX_COLOR_CODE = Pattern.compile("(?i)§x(§[0-9a-f]){6}");
     private static final Pattern FORMAT_CODE = Pattern.compile("(?i)§[0-9a-fk-or]");
     private static final Pattern BRACKETED_RANK = Pattern.compile("[\\[\\(\\{<【](.*?)[\\]\\)\\}>】]");
+    private static final Pattern INVALID_FILE_NAME_CHARS = Pattern.compile("[\\\\/:*?\"<>|\\p{Cntrl}]+");
 
     public TabParserMod() {
         MinecraftForge.EVENT_BUS.register(this);
@@ -74,20 +76,55 @@ public class TabParserMod {
             parsedPlayers.putIfAbsent(username, determineDonate(playerInfo, username));
         }
 
-        Path outputPath = mc.gameDirectory.toPath().resolve("tab_nicks.txt");
+        String serverFileName = getServerFileName(mc);
+        Path outputDirectory = mc.gameDirectory.toPath().resolve("TabParser");
+        Path outputPath = outputDirectory.resolve(serverFileName + ".txt");
         List<String> lines = new ArrayList<>(parsedPlayers.size());
         for (Map.Entry<String, String> entry : parsedPlayers.entrySet()) {
             lines.add(entry.getKey() + " | " + entry.getValue());
         }
 
         try {
+            Files.createDirectories(outputDirectory);
             Files.write(outputPath, lines, StandardCharsets.UTF_8);
             sendMessage(mc, "[TabParser] Успешно обработано игроков: " + parsedPlayers.size());
-            sendMessage(mc, "[TabParser] Файл сохранён: tab_nicks.txt");
+            sendMessage(mc, "[TabParser] Файл сохранён: TabParser/" + serverFileName + ".txt");
         } catch (IOException exception) {
             LOGGER.error("Failed to write TAB parser output to {}", outputPath, exception);
             sendMessage(mc, "[TabParser] Ошибка записи файла: " + exception.getMessage());
         }
+    }
+
+    private static String getServerFileName(Minecraft mc) {
+        ServerData serverData = mc.getCurrentServer();
+        String serverName = "";
+        if (serverData != null) {
+            String serverMotd = serverData.motd == null ? "" : serverData.motd.getString();
+            String serverBrand = mc.player == null ? "" : mc.player.getServerBrand();
+            serverName = firstNotBlank(serverMotd, serverBrand, serverData.ip);
+        } else if (mc.hasSingleplayerServer()) {
+            serverName = "Singleplayer";
+        }
+
+        return sanitizeFileName(serverName.isBlank() ? "Unknown Server" : serverName);
+    }
+
+    private static String firstNotBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private static String sanitizeFileName(String value) {
+        String cleaned = INVALID_FILE_NAME_CHARS.matcher(cleanFormatting(value)).replaceAll("_").trim();
+        cleaned = cleaned.replaceAll("^[. ]+", "").replaceAll("[. ]+$", "");
+        if (cleaned.isBlank()) {
+            return "Unknown Server";
+        }
+        return cleaned.length() > 80 ? cleaned.substring(0, 80).trim() : cleaned;
     }
 
     private static String determineDonate(PlayerInfo playerInfo, String username) {
