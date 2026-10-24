@@ -7,6 +7,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -19,9 +20,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,6 +38,15 @@ public class TabParserMod {
     private static final Pattern FORMAT_CODE = Pattern.compile("(?i)§[0-9a-fk-or]");
     private static final Pattern BRACKETED_RANK = Pattern.compile("[\\[\\(\\{<【](.*?)[\\]\\)\\}>】]");
     private static final Pattern INVALID_FILE_NAME_CHARS = Pattern.compile("[\\\\/:*?\"<>|\\p{Cntrl}]+");
+    private static final Pattern RANK_TOKEN = Pattern.compile("[\\p{L}\\p{N}]+");
+
+    /**
+     * Sorts players exactly like the vanilla TAB list.
+     */
+    private static final Comparator<PlayerInfo> TAB_ORDER = Comparator
+            .<PlayerInfo>comparingInt(info -> info.getGameMode() == GameType.SPECTATOR ? 1 : 0)
+            .thenComparing(info -> info.getTeam() == null ? "" : info.getTeam().getName())
+            .thenComparing(info -> info.getProfile().getName(), String::compareToIgnoreCase);
 
     public TabParserMod() {
         MinecraftForge.EVENT_BUS.register(this);
@@ -44,7 +54,7 @@ public class TabParserMod {
 
     @SubscribeEvent
     public void onClientChat(ClientChatEvent event) {
-        if (!COMMAND.equals(event.getMessage().trim())) {
+        if (!COMMAND.equalsIgnoreCase(event.getMessage().trim())) {
             return;
         }
 
@@ -66,7 +76,11 @@ public class TabParserMod {
         }
 
         Map<String, String> parsedPlayers = new LinkedHashMap<>();
-        for (PlayerInfo playerInfo : connection.getOnlinePlayers()) {
+        List<PlayerInfo> listedPlayers = connection.getListedOnlinePlayers().stream()
+                .sorted(TAB_ORDER)
+                .limit(80L)
+                .toList();
+        for (PlayerInfo playerInfo : listedPlayers) {
             GameProfile profile = playerInfo.getProfile();
             if (profile == null || profile.getName() == null || profile.getName().isBlank()) {
                 continue;
@@ -128,46 +142,24 @@ public class TabParserMod {
     }
 
     private static String determineDonate(PlayerInfo playerInfo, String username) {
-        PrefixResult prefixResult = getTabPrefix(playerInfo, username);
-        if (prefixResult.status() == PrefixStatus.MISSING) {
+        Component displayName = playerInfo.getTabListDisplayName();
+        PlayerTeam team = playerInfo.getTeam();
+        String raw = displayName != null
+                ? displayName.getString()
+                : PlayerTeam.formatNameForTeam(team, Component.literal(username)).getString();
+
+        String cleaned = cleanFormatting(raw);
+        if (cleaned.isBlank() || cleaned.equals(username)) {
             return NO_DONATE;
         }
-        if (prefixResult.status() == PrefixStatus.UNKNOWN) {
-            return UNKNOWN_DONATE;
+
+        String withoutUser = cleaned.replace(username, " ").trim();
+        if (withoutUser.isBlank()) {
+            return NO_DONATE;
         }
 
-        String donate = extractDonateName(prefixResult.prefix());
+        String donate = extractDonateName(withoutUser);
         return donate.isBlank() ? UNKNOWN_DONATE : donate;
-    }
-
-    private static PrefixResult getTabPrefix(PlayerInfo playerInfo, String username) {
-        PlayerTeam team = playerInfo.getTeam();
-        if (team != null) {
-            String teamPrefix = cleanFormatting(team.getPlayerPrefix().getString());
-            if (!teamPrefix.isBlank()) {
-                return new PrefixResult(PrefixStatus.FOUND, teamPrefix);
-            }
-        }
-
-        Component displayName = playerInfo.getTabListDisplayName();
-        if (displayName == null) {
-            return new PrefixResult(PrefixStatus.MISSING, "");
-        }
-
-        String displayed = cleanFormatting(displayName.getString());
-        if (displayed.isBlank() || displayed.equals(username)) {
-            return new PrefixResult(PrefixStatus.MISSING, "");
-        }
-
-        int usernameStart = displayed.indexOf(username);
-        if (usernameStart > 0) {
-            String prefix = displayed.substring(0, usernameStart).trim();
-            return prefix.isBlank()
-                    ? new PrefixResult(PrefixStatus.MISSING, "")
-                    : new PrefixResult(PrefixStatus.FOUND, prefix);
-        }
-
-        return new PrefixResult(PrefixStatus.UNKNOWN, displayed);
     }
 
     static String cleanFormatting(String value) {
@@ -179,28 +171,34 @@ public class TabParserMod {
         String cleaned = cleanFormatting(prefix).trim();
         Matcher matcher = BRACKETED_RANK.matcher(cleaned);
         if (matcher.find()) {
-            return matcher.group(1).trim();
+            return firstRankToken(matcher.group(1));
         }
 
-        return cleaned
-                .replaceAll("^[»>]+\\s*", "")
-                .replaceAll("\\s*[«<]+$", "")
-                .trim()
-                .toUpperCase(Locale.ROOT);
+        return firstRankToken(cleaned);
+    }
+
+    /**
+     * Gets the first letters-and-digits-only token, so the line stays two-column.
+     */
+    private static String firstRankToken(String value) {
+        Matcher token = RANK_TOKEN.matcher(sanitizeOutputValue(value));
+        return token.find() ? token.group() : UNKNOWN_DONATE;
+    }
+
+    /**
+     * Guarantees the value never breaks the two-column line format.
+     */
+    private static String sanitizeOutputValue(String value) {
+        return value
+                .replace('|', ' ')
+                .replaceAll("[\\r\\n\\t]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private static void sendMessage(Minecraft mc, String message) {
         if (mc.player != null) {
             mc.player.displayClientMessage(Component.literal(message), false);
         }
-    }
-
-    private enum PrefixStatus {
-        FOUND,
-        MISSING,
-        UNKNOWN
-    }
-
-    private record PrefixResult(PrefixStatus status, String prefix) {
     }
 }

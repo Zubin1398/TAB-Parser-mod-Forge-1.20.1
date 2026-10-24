@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/Forge-47.1.3%2B-f16436?style=for-the-badge" alt="Forge 47.1.3+"/>
 <img src="https://img.shields.io/badge/side-client--only-4c8dff?style=for-the-badge" alt="Client only"/>
 <img src="https://img.shields.io/badge/output-txt-8b949e?style=for-the-badge" alt="TXT output"/>
-<img src="https://img.shields.io/badge/license-All--Rights--Reserved-red?style=for-the-badge" alt="All Rights Reserved"/>
+<img src="https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge" alt="MIT License"/>
 
 </div>
 
@@ -32,15 +32,15 @@
 <table>
   <tr>
     <td align="right"><b>🚀 Старт</b></td>
-    <td align="center"><a href="#быстрый-старт">Быстрый старт</a></td>
-    <td align="center"><a href="#установка">Установка</a></td>
-    <td align="center"><a href="#использование">Использование</a></td>
+    <td align="center"><a href="#quick-start">Быстрый старт</a></td>
+    <td align="center"><a href="#installation">Установка</a></td>
+    <td align="center"><a href="#usage">Использование</a></td>
   </tr>
   <tr>
     <td align="right"><b>📄 Данные</b></td>
-    <td align="center"><a href="#формат-вывода">Формат вывода</a></td>
-    <td align="center"><a href="#ограничения">Ограничения</a></td>
-    <td align="center"><a href="#сборка">Сборка</a></td>
+    <td align="center"><a href="#output">Формат вывода</a></td>
+    <td align="center"><a href="#limits">Ограничения</a></td>
+    <td align="center"><a href="#build">Сборка</a></td>
   </tr>
 </table>
 
@@ -69,6 +69,8 @@
 
 <br/>
 
+<a id="quick-start"></a>
+
 ## 🚀 Быстрый старт
 
 1. Установи Forge для Minecraft **1.20.1**.
@@ -82,6 +84,8 @@
 6. Открой `.minecraft/TabParser/<server>.txt`.
 
 <br/>
+
+<a id="output"></a>
 
 ## 📄 Формат вывода
 
@@ -106,6 +110,8 @@ v1nrete | ᴋʀᴀᴋᴇɴ
 
 <br/>
 
+<a id="limits"></a>
+
 ## ⚠️ Ограничения
 
 - Мод видит только то, что сервер прислал клиенту.
@@ -115,6 +121,8 @@ v1nrete | ᴋʀᴀᴋᴇɴ
 
 <br/>
 
+<a id="installation"></a>
+
 ## 🛠 Установка
 
 1. Установи Forge 47.1.3 или новее для Minecraft 1.20.1.
@@ -122,6 +130,8 @@ v1nrete | ᴋʀᴀᴋᴇɴ
 3. Запусти Minecraft.
 
 <br/>
+
+<a id="usage"></a>
 
 ## 📦 Использование
 
@@ -131,6 +141,8 @@ v1nrete | ᴋʀᴀᴋᴇɴ
 4. Файл появится в `.minecraft/TabParser/<server>.txt`.
 
 <br/>
+
+<a id="build"></a>
 
 ## 🧰 Сборка
 
@@ -150,4 +162,4 @@ build/libs
 
 ## 📜 Лицензия
 
-All Rights Reserved.
+MIT.
