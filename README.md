@@ -3,7 +3,7 @@
 <br/>
 
 # 🧾 TAB Parser — экспорт списка игроков в Minecraft
-
+**Совместим с** - [BrutForce-Minecraft-accounts-mod](https://github.com/Zubin1398/BrutForce-Minecraft-accounts-mod/tree/main) / [Step-by-Step-Checker](https://github.com/Zubin1398/Step-by-Step-Checker/tree/main)
 </div>
 
 <div align="center">
